@@ -7,6 +7,7 @@ import Html.Attributes exposing (class, href)
 import Http exposing (expectJson)
 import Json.Decode as Decode
 import Result exposing (Result)
+import Step14.GamePage exposing (Game, Question, gamePage, questionsDecoder, questionsUrl)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>))
 import Utils.Utils exposing (styles, testsIframe)
@@ -28,18 +29,21 @@ type Msg
     = OnCategoriesFetched (Result Http.Error (List Category))
     | OnUrlRequest UrlRequest
     | OnUrlChange Url
+    | OnQuestionsFetched (Result Http.Error (List Question))
 
 
 type Page
     = HomePage
     | CategoriesPage (RemoteData (List Category))
     | ResultPage Int
+    | GamePage (RemoteData Game)
 
 
 type Route
     = HomeRoute
     | CategoriesRoute
     | ResultRoute Int
+    | GameRoute
 
 
 type alias Model =
@@ -64,6 +68,7 @@ routeParser =
         [ Parser.map HomeRoute Parser.top
         , Parser.map CategoriesRoute (Parser.s "categories")
         , Parser.map ResultRoute (Parser.s "result" </> Parser.int)
+        , Parser.map GameRoute (Parser.s "game")
         ]
 
 
@@ -83,6 +88,9 @@ parseUrlToPageAndCommand url =
 
         Just HomeRoute ->
             ( HomePage, Cmd.none )
+
+        Just GameRoute ->
+            ( GamePage Loading, getQuestionsRequest )
 
         Nothing ->
             ( HomePage, Cmd.none )
@@ -108,13 +116,23 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        OnCategoriesFetched (Err err) ->
+        OnCategoriesFetched (Err _) ->
             case model.page of
                 CategoriesPage _ ->
                     ( { model | page = CategoriesPage OnError }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
+
+        OnQuestionsFetched (Ok (firstQuestion :: remainingQuestions)) ->
+            let
+                game =
+                    Game firstQuestion remainingQuestions
+            in
+            ( { model | page = GamePage (Loaded game) }, Cmd.none )
+
+        OnQuestionsFetched _ ->
+            ( { model | page = GamePage OnError }, Cmd.none )
 
         OnUrlRequest urlRequest ->
             case urlRequest of
@@ -152,6 +170,14 @@ getCategoriesRequest =
         }
 
 
+getQuestionsRequest : Cmd Msg
+getQuestionsRequest =
+    Http.get
+        { url = questionsUrl
+        , expect = expectJson OnQuestionsFetched questionsDecoder
+        }
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -164,6 +190,15 @@ view model =
 
             ResultPage score ->
                 displayResultPage score
+
+            GamePage Loading ->
+                div [] [ text "Loading the questions..." ]
+
+            GamePage OnError ->
+                div [] [ text "An unknown error occurred while loading the questions" ]
+
+            GamePage (Loaded game) ->
+                gamePage game.currentQuestion
         ]
 
 

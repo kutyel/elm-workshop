@@ -1,4 +1,23 @@
-module Step14.GamePage exposing (Category, Game, Model, Msg(..), Question, RemoteData(..), answersDecoder, correctAnswerDecoder, displayAnswer, gamePage, getQuestionsRequest, init, main, questionDecoder, questionsDecoder, questionsUrl, update, view)
+module Step14.GamePage exposing
+    ( Category
+    , Game
+    , Model
+    , Msg(..)
+    , Question
+    , RemoteData(..)
+    , answersDecoder
+    , correctAnswerDecoder
+    , displayAnswer
+    , gamePage
+    , getQuestionsRequest
+    , init
+    , main
+    , questionDecoder
+    , questionsDecoder
+    , questionsUrl
+    , update
+    , view
+    )
 
 import Browser
 import Html exposing (Html, a, div, h2, li, text, ul)
@@ -71,7 +90,7 @@ getQuestionsRequest =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update message model =
+update message _ =
     case message of
         OnQuestionsFetched (Ok (firstQuestion :: remainingQuestions)) ->
             let

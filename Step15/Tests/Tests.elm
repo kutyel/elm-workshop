@@ -1,30 +1,72 @@
-module Step15.Tests.Tests exposing (afterAnsweringLastQuestionWeShouldBeRedirectedToProperResult, afterAnsweringLastQuestionWeShouldBeRedirectedToResult, afterClickingTheProperAnswerTheModelShouldBeUpdated, afterClickingTheWrongAnswerTheModelShouldBeUpdated, categoriesUrl, fakeGameLocation, initialModel, main, questionsUrl, randomQuestionFuzz, randomTwoQuestionsListFuzz, whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed)
+module Step15.Tests.Tests exposing (..)
 
+import Browser exposing (Document)
+import Browser.Navigation exposing (Key)
 import ElmEscapeHtml exposing (unescape)
-import Expect exposing (Expectation)
-import Fuzz exposing (intRange)
+import Expect
+import Fuzz
 import Http exposing (Error(..))
-import Json.Encode as Encode
-import Step15.Main exposing (init)
-import Test exposing (Test, concat, describe, fuzz, test)
-import Test.Html.Event exposing (Event, click, simulate, toResult)
+import Random
+import Step15.Main exposing (..)
+import Test exposing (Test, concat, fuzz)
+import Test.Html.Event exposing (click, simulate, toResult)
 import Test.Html.Query as Query
 import Test.Html.Selector exposing (tag, text)
+import Test.Runner.Html exposing (defaultConfig, hidePassedTests, viewResults)
+import Url exposing (Protocol(..), Url)
+import Utils.Utils exposing (testStyles)
 
 
-fakeGameLocation =
-    { href = "http://localhost:8080/Step15/index.html#game"
+fakeHomeUrl : Url
+fakeHomeUrl =
+    { protocol = Http
     , host = "localhost"
-    , hostname = "localhost"
-    , protocol = "http:"
-    , origin = "http://localhost:8080/Step15/"
-    , port_ = "8000"
-    , pathname = "/Step15/index.html"
-    , search = ""
-    , hash = "#game"
-    , username = ""
-    , password = ""
+    , port_ = Just 80
+    , path = "/"
+    , query = Nothing
+    , fragment = Nothing
     }
+
+
+fakeCategoriesUrl : Url
+fakeCategoriesUrl =
+    { fakeHomeUrl | fragment = Just "categories" }
+
+
+fakeResultUrl : Int -> Url
+fakeResultUrl score =
+    { fakeHomeUrl | fragment = Just ("result/" ++ String.fromInt score) }
+
+
+fakeGameUrl : Url
+fakeGameUrl =
+    { fakeHomeUrl | fragment = Just "game" }
+
+
+main : Program () Key ()
+main =
+    let
+        testsView key =
+            Document
+                "Tests for step 14"
+                [ testStyles
+                , viewResults (Random.initialSeed 1000 |> defaultConfig |> hidePassedTests) (testsSuite key)
+                ]
+
+        init _ _ key =
+            ( key, Cmd.none )
+
+        update _ key =
+            ( key, Cmd.none )
+    in
+    Browser.application
+        { init = init
+        , update = update
+        , view = testsView
+        , subscriptions = always Sub.none
+        , onUrlRequest = always ()
+        , onUrlChange = always ()
+        }
 
 
 categoriesUrl : String
@@ -37,28 +79,25 @@ questionsUrl =
     "https://opentdb.com/api.php?amount=5&type=multiple"
 
 
-main =
+testsSuite : Key -> Test
+testsSuite key =
     concat
-        [ whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed
-        , afterClickingTheProperAnswerTheModelShouldBeUpdated
-        , afterClickingTheWrongAnswerTheModelShouldBeUpdated
-        , afterAnsweringLastQuestionWeShouldBeRedirectedToResult
+        [ whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed key
+        , afterClickingTheProperAnswerTheModelShouldBeUpdated key
+        , afterClickingTheWrongAnswerTheModelShouldBeUpdated key
+        , afterAnsweringLastQuestionWeShouldBeRedirectedToResult key
         ]
 
 
-initialModel =
-    init fakeGameLocation
-
-
-whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed : Test
-whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed =
+whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed : Key -> Test
+whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed key =
     fuzz randomTwoQuestionsListFuzz "When questions are loaded, the first question should be displayed" <|
         \randomQuestions ->
             case randomQuestions of
                 [ question1, question2 ] ->
                     let
                         updatedView =
-                            init fakeGameLocation
+                            init () fakeHomeUrl key
                                 |> Tuple.first
                                 |> update (OnQuestionsFetched <| Ok [ question1, question2 ])
                                 |> Tuple.first
@@ -72,15 +111,15 @@ whenQuestionsAreLoadedTheFirstQuestionShouldBeDisplayed =
                     Expect.pass
 
 
-afterClickingTheProperAnswerTheModelShouldBeUpdated : Test
-afterClickingTheProperAnswerTheModelShouldBeUpdated =
+afterClickingTheProperAnswerTheModelShouldBeUpdated : Key -> Test
+afterClickingTheProperAnswerTheModelShouldBeUpdated key =
     fuzz randomTwoQuestionsListFuzz "After clicking the proper answer, model should indicate that it's correct and go to next question" <|
         \randomQuestions ->
             case randomQuestions of
                 [ question1, question2 ] ->
                     let
                         initialModel =
-                            init fakeGameLocation
+                            init () fakeHomeUrl key
                                 |> Tuple.first
                                 |> update (OnQuestionsFetched <| Ok [ question1, question2 ])
                                 |> Tuple.first
@@ -109,15 +148,15 @@ afterClickingTheProperAnswerTheModelShouldBeUpdated =
                     Expect.pass
 
 
-afterClickingTheWrongAnswerTheModelShouldBeUpdated : Test
-afterClickingTheWrongAnswerTheModelShouldBeUpdated =
+afterClickingTheWrongAnswerTheModelShouldBeUpdated : Key -> Test
+afterClickingTheWrongAnswerTheModelShouldBeUpdated key =
     fuzz randomTwoQuestionsListFuzz "After clicking the wrong answer, model should indicate that it's incorrect and go to next question" <|
         \randomQuestions ->
             case randomQuestions of
                 [ question1, question2 ] ->
                     let
                         initialModel =
-                            init fakeGameLocation
+                            init () fakeHomeUrl key
                                 |> Tuple.first
                                 |> update (OnQuestionsFetched <| Ok [ question1, question2 ])
                                 |> Tuple.first
@@ -146,8 +185,8 @@ afterClickingTheWrongAnswerTheModelShouldBeUpdated =
                     Expect.pass
 
 
-afterAnsweringLastQuestionWeShouldBeRedirectedToResult : Test
-afterAnsweringLastQuestionWeShouldBeRedirectedToResult =
+afterAnsweringLastQuestionWeShouldBeRedirectedToResult : Key -> Test
+afterAnsweringLastQuestionWeShouldBeRedirectedToResult _ =
     fuzz randomTwoQuestionsListFuzz "After answering the last question, we should be redirect to result page" <|
         \randomQuestions ->
             case randomQuestions of
@@ -227,7 +266,7 @@ afterAnsweringLastQuestionWeShouldBeRedirectedToProperResult =
 randomTwoQuestionsListFuzz : Fuzz.Fuzzer (List Question)
 randomTwoQuestionsListFuzz =
     Fuzz.map2
-        (List.singleton >> (\b a -> (::) a b))
+        (List.singleton >> (\b a -> a :: b))
         randomQuestionFuzz
         randomQuestionFuzz
 

@@ -1,7 +1,7 @@
-module Step15.Main exposing (Category, Model, Msg(..), Page(..), RemoteData(..), Route(..), categoriesDecoder, displayCategoriesList, displayCategoriesPage, displayCategory, displayComment, displayHomePage, displayResultPage, getCategoriesRequest, getCategoriesUrl, getQuestionsRequest, init, main, parseUrlToPageAndCommand, routeParser, update, view)
+module Step15.Main exposing (..)
 
-import Browser exposing (Document, UrlRequest)
-import Browser.Navigation exposing (Key)
+import Browser exposing (Document, UrlRequest(..))
+import Browser.Navigation as Navigation exposing (Key)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (expectJson)
@@ -46,12 +46,12 @@ type Route
     = HomeRoute
     | CategoriesRoute
     | ResultRoute Int
-    | GameRoute
+    | GameRoute (RemoteData Game)
 
 
 type alias Model =
-    { key : Key
-    , page : Page
+    { categories : RemoteData (List Category)
+    , route : Route
     }
 
 
@@ -67,7 +67,8 @@ type alias Question =
 
 
 type alias Game =
-    { currentQuestion : Question
+    { answeredQuestions : List AnsweredQuestion
+    , currentQuestion : Question
     , remainingQuestions : List Question
     }
 
@@ -105,7 +106,7 @@ parseUrlToPageAndCommand url =
         Just HomeRoute ->
             ( HomePage, Cmd.none )
 
-        Just GameRoute ->
+        Just (GameRoute _) ->
             ( GamePage Loading, getQuestionsRequest )
 
         Nothing ->
@@ -156,6 +157,17 @@ init _ url key =
     ( Model key page, cmd )
 
 
+type alias AnsweredQuestion =
+    { question : Question
+    , status : QuestionStatus
+    }
+
+
+type QuestionStatus
+    = Correct
+    | Incorrect
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -167,7 +179,7 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        OnCategoriesFetched (Err err) ->
+        OnCategoriesFetched (Err _) ->
             case model.page of
                 CategoriesPage _ ->
                     ( { model | page = CategoriesPage OnError }, Cmd.none )
@@ -193,7 +205,7 @@ update msg model =
         OnQuestionsFetched (Ok (firstQuestion :: remainingQuestions)) ->
             let
                 game =
-                    Game firstQuestion remainingQuestions
+                    Game [] firstQuestion remainingQuestions
             in
             ( { model | page = GamePage (Loaded game) }, Cmd.none )
 
@@ -245,6 +257,19 @@ view model =
                     Loaded game ->
                         gamePage game.currentQuestion
         ]
+
+
+gamePage : Question -> Html msg
+gamePage question =
+    div []
+        [ h2 [ class "question" ] [ text question.question ]
+        , ul [ class "answers" ] (List.map displayAnswer question.answers)
+        ]
+
+
+displayAnswer : String -> Html msg
+displayAnswer answer =
+    li [] [ a [ class "btn btn-primary" ] [ text answer ] ]
 
 
 displayHomePage : Html Msg

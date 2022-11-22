@@ -11,10 +11,26 @@ type alias Category =
     }
 
 
+viewCategory : Category -> Html msg
+viewCategory { id, name } =
+    li []
+        [ a
+            [ class "btn btn-primary"
+            , href <| "#game/category/" ++ String.fromInt id
+            ]
+            [ text name ]
+        ]
+
+
 categoriesPage : Html msg
 categoriesPage =
     div []
-        [ text "Content of the page" ]
+        [ h1 [] [ text "Play within a given category" ]
+        , ul [ class "categories" ]
+            (categories
+                |> List.map viewCategory
+            )
+        ]
 
 
 categories : List Category

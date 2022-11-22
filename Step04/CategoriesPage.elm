@@ -4,6 +4,10 @@ import Html exposing (Html, a, span, strong, text)
 import Html.Attributes exposing (href)
 
 
+type alias Category =
+    { id : Int, name : String }
+
+
 categories : List Category
 categories =
     [ { id = 9, name = "General Knowledge" }
